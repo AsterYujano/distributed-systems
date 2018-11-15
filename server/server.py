@@ -3,7 +3,7 @@
 # TDA596 - Lab 1
 # server/server.py
 # Input: Node_ID total_number_of_ID
-# Student: John Doe
+# Students: Nadia Francois
 # ------------------------------------------------------------------------------------------------------
 import traceback
 import sys
@@ -18,19 +18,17 @@ import requests
 try:
     app = Bottle()
 
-    board = {
-        1 : "nothing"
-    }
+    board = {}
 
 
     # ------------------------------------------------------------------------------------------------------
     # BOARD FUNCTIONS
     # ------------------------------------------------------------------------------------------------------
     def add_new_element_to_store(entry_element, element, is_propagated_call=False):
+	#todo what is the purpose of the ispropagatedcall
         global board, node_id
         success = False
         try:
-	    
             board[entry_element] = element
             success = True
         except Exception as e:
@@ -41,7 +39,7 @@ try:
         global board, node_id
         success = False
         try:
-            board = modified_element
+            board[entry_sequence] = modified_element
             success = True
         except Exception as e:
             print e
@@ -51,7 +49,7 @@ try:
         global board, node_id
         success = False
         try:
-            board = ""
+            board.pop(entry_sequence)
             success = True
         except Exception as e:
             print e
@@ -95,7 +93,7 @@ try:
     # ------------------------------------------------------------------------------------------------------
     @app.route('/')
     def index():
-        global board, node_id
+        global board, nodsssssssse_id
         return template('server/index.tpl', board_title='Vessel {}'.format(node_id), board_dict=sorted(board.iteritems()), members_name_string='Nadia Alloppi, Francois Le Pape')
 
     @app.get('/board')
@@ -111,13 +109,15 @@ try:
         global board, node_id
         try:
             new_entry = request.forms.get('entry')
-	    
-            add_new_element_to_store(len(board)+1, new_entry)
+	    entry_id = len(board)+1
 
-            # you should propagate something
-            # Please use threads to avoid blocking
-            #thread = Thread(target=???,args=???)
-            # you should create the thread as a deamon
+            add_new_element_to_store(entry_id, new_entry)
+	    payload = {'payload':new_entry}
+
+	    path = "/propagate/add/"+str(entry_id)
+            thread = Thread(target=propagate_to_vessels,args=(path, payload))
+            thread.daemon = True
+	    thread.start()
             return True
         except Exception as e:
             print e
@@ -125,28 +125,24 @@ try:
 
     @app.post('/board/<element_id:int>/')
     def client_action_received(element_id):
-        '''global board'''
-
+	'''
+	delete = request.forms.get('delete')     
+   
+	if delete == "0":
+	    #do modify
+	elif delete == 1:
+	    #do delete
+	'''
         pass
 
-    @app.post('/propagate/<action>/<element_id>')
+    @app.post('/propagate/<action>/<element_id:int>')
     def propagation_received(action, element_id):
         global board
-        '''
-	if action == delete:
-	    global board
- 	    try:
-	        board.pop(element_id)
+	payload = request.forms.get('payload')
 
-	        # you should propagate something
-	        # Please use threads to avoid blocking
-	        #thread = Thread(target=???,args=???)
-	        # you should create the thread as a deamon
-	        return True
-	    except Exception as e:
-	       print e
-	    return false
-	'''
+	if action == "add":
+	    add_new_element_to_store(element_id, payload)
+        
         pass
         
     # ------------------------------------------------------------------------------------------------------
