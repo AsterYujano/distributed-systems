@@ -125,14 +125,14 @@ try:
 
     @app.post('/board/<element_id:int>/')
     def client_action_received(element_id):
-        global board
+        '''global board'''
 
         pass
 
     @app.post('/propagate/<action>/<element_id>')
     def propagation_received(action, element_id):
         global board
-
+        '''
 	if action == delete:
 	    global board
  	    try:
@@ -146,7 +146,7 @@ try:
 	    except Exception as e:
 	       print e
 	    return false
-
+	'''
         pass
         
     # ------------------------------------------------------------------------------------------------------
@@ -157,7 +157,7 @@ try:
         global vessel_list, node_id, app
 
         port = 80
-        parser = argparse.ArgumentParser(description='Your own implementation of the distributed blackboard')
+        parser = argparse.ArgumentParser(description='Our own implementation of the distributed blackboard')
         parser.add_argument('--id', nargs='?', dest='nid', default=1, type=int, help='This server ID')
         parser.add_argument('--vessels', nargs='?', dest='nbv', default=1, type=int, help='The total number of vessels present in the system')
         args = parser.parse_args()
