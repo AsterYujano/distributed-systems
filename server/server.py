@@ -24,13 +24,23 @@ try:
     # ------------------------------------------------------------------------------------------------------
     # BOARD FUNCTIONS
     # ------------------------------------------------------------------------------------------------------
+    def threading(action, entry_element, element=''):
+	payload = {'payload': element}
+	path = "/propagate/"+action+"/"+str(entry_element)
+	t = Thread(target=propagate_to_vessels,args=(path, payload))
+	t.daemon = True
+	t.start()
+	
     def add_new_element_to_store(entry_element, element, is_propagated_call=False):
-	#todo what is the purpose of the ispropagatedcall
         global board, node_id
         success = False
         try:
+	    # add an element to the board of the vessel who call the function
             board[entry_element] = element
-            success = True
+	    if is_propagated_call:
+		# propagate to other vessels
+ 	    	threading("add", entry_element, element)
+ 	    success = True
         except Exception as e:
             print e
         return success
@@ -39,7 +49,10 @@ try:
         global board, node_id
         success = False
         try:
+	    # modify an element in the board of the vessel who call the function
             board[entry_sequence] = modified_element
+	    if is_propagated_call:
+	    	threading("modify", entry_sequence, modified_element)
             success = True
         except Exception as e:
             print e
@@ -49,7 +62,10 @@ try:
         global board, node_id
         success = False
         try:
+	    # delete an element to the board of the vessel who call the function
             board.pop(entry_sequence)
+	    if is_propagated_call:
+  	        threading("delete", entry_sequence)
             success = True
         except Exception as e:
             print e
@@ -110,16 +126,8 @@ try:
         try:
             new_entry = request.forms.get('entry')
 	    entry_id = len(board)+1
-
-            add_new_element_to_store(entry_id, new_entry)
-
-	    #propagation
-	    payload = {'payload':new_entry}
-	    path = "/propagate/add/"+str(entry_id)
-            thread = Thread(target=propagate_to_vessels,args=(path, payload))
-            thread.daemon = True
-	    thread.start()
-	    return True
+	    add_new_element_to_store(entry_id, new_entry, True)
+   	    return True
 
         except Exception as e:
             print e
@@ -133,26 +141,12 @@ try:
 	if delete == "0":
 	    #do modify
  	    modified_element = request.forms.get('entry') 
-	    modify_element_in_store(element_id, modified_element)
+	    modify_element_in_store(element_id, modified_element, True)
 	    
-	    payload = {'payload':modified_element}
-	    path = "/propagate/modify/"+str(element_id)
-            thread = Thread(target=propagate_to_vessels,args=(path, payload))
-            thread.daemon = True
-	    thread.start()
-
 	if delete == "1":
 	    #do delete
-	    delete_element_from_store(element_id)
-	    try:
-	        path = "/propagate/delete/"+str(element_id)
-		print path
-                t = Thread(target=propagate_to_vessels,args=(path, ''))
-                t.daemon = True
-	        t.start()
-	    except Exception as e:
-                print e
-	
+	    delete_element_from_store(element_id, True)  
+	  	
         pass
 
     @app.post('/propagate/<action>/<element_id:int>')

@@ -140,8 +140,8 @@ try:
 		    # should we add a try also here?
 		    payload = {'payload':modified_element}
 		    path = "/propagate/modify/"+str(element_id)
-	        thread = Thread(target=propagate_to_vessels,args=(path, payload))
-	        thread.daemon = True
+	            thread = Thread(target=propagate_to_vessels,args=(path, payload))
+	            thread.daemon = True
 		    thread.start()
 
 		if delete == "1":
@@ -164,6 +164,7 @@ try:
 		payload = request.forms.get('payload')
 
 		if action == "add":
+		    
 		    add_new_element_to_store(element_id, payload)
 
 		if action == "modify":
