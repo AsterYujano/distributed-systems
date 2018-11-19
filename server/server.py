@@ -179,7 +179,8 @@ try:
         node_id = args.nid
         vessel_list = dict()
         # We need to write the other vessels IP, based on the knowledge of their number
-        for i in range(1, args.nbv):
+	# args.nbv should be at least 8, changing args.nbv with 8 it works, but it can't reach vessel 8
+        for i in range(1, args.nbv): 
             vessel_list[str(i)] = '10.1.0.{}'.format(str(i))
 
         try:
