@@ -20,6 +20,7 @@ from random import randint
 try:
     app = Bottle()
     board = {}
+    values = {}
 
     # ------------------------------------------------------------------------------------------------------
     # BOARD FUNCTIONS
@@ -98,13 +99,40 @@ try:
         for vessel_id, vessel_ip in vessel_list.items():
             if int(vessel_id) != node_id: # don't propagate to yourself
                 success = contact_vessel(vessel_ip, path, payload, req)
-                if not success:
+                if not success:                    
                     print "\n\nCould not contact vessel {}\n\n".format(vessel_id)
 
-    def mapping():
-        values = {}
-        values[1] = randint(0,1000)
-        print values
+    def propagate_to_neighbor(path, payload = None, req = 'POST'):
+        global vessel_list, node_id
+        try:
+            ip = '10.1.0.'+str(node_id+1)
+            success = contact_vessel(ip, path, payload, req)
+            if not success:                    
+                print "\n\nCould not contact vessel {}\n\n".format(ip)
+        except Exception as e:
+            print e
+
+    def mapping(id):
+        global values
+        print '[+] starting mapping'
+
+        print '[+] Init values'
+        values[id] = randint(0,1000)
+        print 'values : '+str(values)
+        try:
+            print '[+] Launch Domino - Try to reach .2 ...'
+            time.sleep(2)
+            target = 2
+            values = str(values)
+            path = "/mapping"
+
+            t = Thread(target=propagate_to_neighbor,args=(path, values))
+            t.daemon = True
+            t.start()
+
+        except Exception as e:
+            print e
+
 
     # ------------------------------------------------------------------------------------------------------
     # ROUTES
@@ -166,6 +194,15 @@ try:
     	if action == "delete":
      	    delete_element_from_store(element_id)
         pass
+
+    @app.post('/mapping')
+    def mapping_received():
+        print '[!] received'
+         
+        values = request.forms.get('values')
+        print values
+
+        pass
         
     # ------------------------------------------------------------------------------------------------------
     # EXECUTION
@@ -173,7 +210,7 @@ try:
     # Execute the code
     def main():
         global vessel_list, node_id, app
-
+        print 'Start main'
         port = 80
         parser = argparse.ArgumentParser(description='Our own implementation of the distributed blackboard')
         parser.add_argument('--id', nargs='?', dest='nid', default=1, type=int, help='This server ID')
@@ -181,11 +218,19 @@ try:
         args = parser.parse_args()
         node_id = args.nid
         vessel_list = dict()
+
         # We need to write the other vessels IP, based on the knowledge of their number
         for i in range(1, args.nbv):
             vessel_list[str(i)] = '10.1.0.{}'.format(str(i))
 
         try:
+            # run() will loop, so I create a thread to run the election after the mininet setup.
+            # A better idea would be to emit an event when all servers are ready and then launch the election
+            if node_id == 1:
+                t = Thread(target=mapping,args=(node_id,))
+                t.daemon = True
+                t.start()
+                #mapping(node_id)
             run(app, host=vessel_list[str(node_id)], port=port)
             
         except Exception as e:
