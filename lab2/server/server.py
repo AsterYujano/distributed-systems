@@ -10,11 +10,11 @@ import sys
 import time
 import json
 import argparse
-from threading import Thread
-
-from bottle import Bottle, run, request, template
 import requests
+
+from threading import Thread
 from random import randint
+from bottle import Bottle, run, request, template
 
 # ------------------------------------------------------------------------------------------------------
 try:
@@ -26,21 +26,21 @@ try:
     # BOARD FUNCTIONS
     # ------------------------------------------------------------------------------------------------------
     def threading(action, entry_element, element=''):
-    	payload = {'payload': element}
-    	path = "/propagate/"+action+"/"+str(entry_element)
-    	t = Thread(target=propagate_to_vessels,args=(path, payload))
-    	t.daemon = True
-    	t.start()
-	
+        payload = {'payload': element}
+        path = "/propagate/"+action+"/"+str(entry_element)
+        t = Thread(target=propagate_to_vessels,args=(path, payload))
+        t.daemon = True
+        t.start()
+    
     def add_new_element_to_store(entry_element, element, is_propagated_call=False):
         global board, node_id
         success = False
         try:
             # add an element to the board of the vessel who call the function
             board[entry_element] = element
-    	    if is_propagated_call:
+            if is_propagated_call:
                 # propagate to other vessels
-     	    	threading("add", entry_element, element)
+                threading("add", entry_element, element)
             success = True
         except Exception as e:
             print e
@@ -50,11 +50,11 @@ try:
         global board, node_id
         success = False
         try:
-	        # modify an element in the board of the vessel who call the function
+            # modify an element in the board of the vessel who call the function
             board[entry_sequence] = modified_element
-	    if is_propagated_call:
-	    	threading("modify", entry_sequence, modified_element)
-            success = True
+            if is_propagated_call:
+                threading("modify", entry_sequence, modified_element)
+                success = True
         except Exception as e:
             print e
         return success
@@ -63,11 +63,11 @@ try:
         global board, node_id
         success = False
         try:
-	        # delete an element to the board of the vessel who call the function
+            # delete an element to the board of the vessel who call the function
             board.pop(entry_sequence)
-	    if is_propagated_call:
-  	        threading("delete", entry_sequence)
-            success = True
+            if is_propagated_call:
+                threading("delete", entry_sequence)
+                success = True
         except Exception as e:
             print e
         return success
@@ -101,37 +101,6 @@ try:
                 success = contact_vessel(vessel_ip, path, payload, req)
                 if not success:                    
                     print "\n\nCould not contact vessel {}\n\n".format(vessel_id)
-
-    def propagate_to_neighbor(path, payload = None, req = 'POST'):
-        global vessel_list, node_id
-        try:
-            ip = '10.1.0.'+str(node_id+1)
-            success = contact_vessel(ip, path, payload, req)
-            if not success:                    
-                print "\n\nCould not contact vessel {}\n\n".format(ip)
-        except Exception as e:
-            print e
-
-    def mapping(id):
-        global values
-        print '[+] starting mapping'
-
-        print '[+] Init values'
-        values[id] = randint(0,1000)
-        print 'values : '+str(values)
-        try:
-            print '[+] Launch Domino - Try to reach .2 ...'
-            time.sleep(2)
-            target = 2
-            values = str(values)
-            path = "/mapping"
-
-            t = Thread(target=propagate_to_neighbor,args=(path, values))
-            t.daemon = True
-            t.start()
-
-        except Exception as e:
-            print e
 
 
     # ------------------------------------------------------------------------------------------------------
@@ -167,49 +136,108 @@ try:
 
     @app.post('/board/<element_id:int>/')
     def client_action_received(element_id):
-    	delete = request.forms.get('delete')     
-    	
-    	if delete == "0":
-    	    #do modify
-     	    modified_element = request.forms.get('entry') 
-    	    modify_element_in_store(element_id, modified_element, True)
-    	    
-    	if delete == "1":
-    	    #do delete
-    	    delete_element_from_store(element_id, True)  
+        delete = request.forms.get('delete')     
+        
+        if delete == "0":
+            #do modify
+            modified_element = request.forms.get('entry') 
+            modify_element_in_store(element_id, modified_element, True)
+            
+        if delete == "1":
+            #do delete
+            delete_element_from_store(element_id, True)  
 
         pass
 
     @app.post('/propagate/<action>/<element_id:int>')
     def propagation_received(action, element_id):
         global board
-    	payload = request.forms.get('payload')
+        payload = request.forms.get('payload')
 
-    	if action == "add":
-    	    add_new_element_to_store(element_id, payload)
+        if action == "add":
+            add_new_element_to_store(element_id, payload)
 
-    	if action == "modify":
-     	    modify_element_in_store(element_id, payload)
+        if action == "modify":
+            modify_element_in_store(element_id, payload)
 
-    	if action == "delete":
-     	    delete_element_from_store(element_id)
+        if action == "delete":
+            delete_element_from_store(element_id)
         pass
 
-    @app.post('/mapping')
-    def mapping_received():
-        print '[!] received'
-         
-        values = request.forms.get('values')
-        print values
+    #--------------------------------------------------
+    # LAB 2
+    #--------------------------------------------------
 
-        pass
+    def leader_selection(body):
+        try:
+            leader_values = max(zip(body.values(), body.keys()))
+            return leader_values[1]
+        except Exception as e:
+            print e
+        #Gerer les conflits de valeurs
+
+    def find_next_node(node_id):
+        try:
+            global vessel_list
+            return vessel_list[str( (node_id % len(vessel_list))+1 )]
+        except Exception as e:
+            print e
+    
+    def mapping(body):
+        global rand, node_id, leader
+        print '[+] Start mapping'
+
+        try:
+            if node_id in body:
+                #print '[!] Circle finished'
+                leader = leader_selection(body)
+                print '[!] the new leader is : ',
+                print(leader)
+                return
+
+            #Append to the general list its ID and random number
+            body[node_id] = rand
+            print '    Body list :',
+            print(body)
+            next_node = find_next_node(node_id)
+            path = "/propagatemapping"
+            payload = {'payload': str(body)}
+
+            # Send to next node the dictionnary
+            time.sleep(0.2)
+            t = Thread(target=contact_vessel,args=(next_node, path, payload))
+            t.daemon = True
+            t.start()
+            
+        except Exception as e:
+            print e
+
+    @app.post('/propagatemapping')
+    def propagate_mapping():
+        global board
+
+        try:
+            print '[?] Got a POST request'
+            payload = eval(request.forms.get('payload'))
+            print '    payload : ',
+            print(payload)
+
+            t = Thread(target=mapping,args=(payload,))
+            t.daemon = True
+            t.start()
+        except Exception as e:
+            print e
+
+    # ------------------------------------------------------------------------------------------------------
+    # EXECUTION
+    # ------------------------------------------------------------------------------------------------------
         
     # ------------------------------------------------------------------------------------------------------
     # EXECUTION
     # ------------------------------------------------------------------------------------------------------
     # Execute the code
     def main():
-        global vessel_list, node_id, app
+        global vessel_list, node_id, app, rand
         print 'Start main'
         port = 80
         parser = argparse.ArgumentParser(description='Our own implementation of the distributed blackboard')
@@ -218,6 +246,7 @@ try:
         args = parser.parse_args()
         node_id = args.nid
         vessel_list = dict()
+        rand = randint(0,1000)
 
         # We need to write the other vessels IP, based on the knowledge of their number
         for i in range(1, args.nbv):
@@ -226,11 +255,10 @@ try:
         try:
             # run() will loop, so I create a thread to run the election after the mininet setup.
             # A better idea would be to emit an event when all servers are ready and then launch the election
-            if node_id == 1:
-                t = Thread(target=mapping,args=(node_id,))
-                t.daemon = True
-                t.start()
-                #mapping(node_id)
+            time.sleep(1)
+            t = Thread(target=mapping,args=(dict(),))
+            t.daemon = True
+            t.start()
             run(app, host=vessel_list[str(node_id)], port=port)
             
         except Exception as e:
