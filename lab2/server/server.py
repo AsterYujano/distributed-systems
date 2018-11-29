@@ -3,7 +3,7 @@
 # TDA596 - Lab 1
 # server/server.py
 # Input: Node_ID total_number_of_ID
-# Students: Nadia Francois
+# Student: Francois
 # ------------------------------------------------------------------------------------------------------
 import traceback
 import sys
@@ -41,7 +41,7 @@ try:
             if not leader == node_id:
                 print '[?] Middleware leader reached - You are NOT a leader [?]'
                 #Contact leader
-                path = "/propagate/"+str(action)+"/"
+                path = "/leader/"+str(action)
                 t = Thread(target=contact_vessel,args=(leader_ip, path, payload))
                 t.daemon = True
                 t.start()
@@ -58,8 +58,7 @@ try:
         global board, node_id
         success = False
         try:
-            if middleware_leader('add', element):
-                return
+            
             # add an element to the board of the vessel who call the function
             board[entry_element] = element
             if is_propagated_call:
@@ -149,8 +148,15 @@ try:
         Called directly when a user is doing a POST request on /board'''
         global board, node_id
         try:
+
             new_entry = request.forms.get('entry')
             entry_id = len(board)+1
+
+            payload = {'payload': str(new_entry)}
+            if middleware_leader('add', payload):
+                return
+                
+
             # FALSE TO DO NOT PROPAGATE EVERY INFO
             add_new_element_to_store(entry_id, new_entry, True)
             return True
@@ -189,6 +195,23 @@ try:
 
         if action == "delete":
             delete_element_from_store(element_id)
+        pass
+
+
+    @app.post('/leader/<action>')
+    def propagation_received(action):
+        global board
+        payload = request.forms.get('payload')
+
+        entry_id = len(board)+1
+        if action == "add":
+            add_new_element_to_store(entry_id, payload, True)
+
+        if action == "modify":
+            modify_element_in_store(entry_id, payload)
+
+        if action == "delete":
+            delete_element_from_store(entry_id)
         pass
 
     #--------------------------------------------------
