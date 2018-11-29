@@ -20,6 +20,8 @@ from bottle import Bottle, run, request, template
 try:
     app = Bottle()
     board = {}
+    leader = -1
+    leader_ip = ''
     values = {}
 
     # ------------------------------------------------------------------------------------------------------
@@ -32,10 +34,32 @@ try:
         t.daemon = True
         t.start()
     
+    def middleware_leader(action, payload):
+        global leader_ip, node_id
+        try:
+            #if this is not the leader
+            if not leader == node_id:
+                print '[?] Middleware leader reached - You are NOT a leader [?]'
+                #Contact leader
+                path = "/propagate/"+str(action)+"/"
+                t = Thread(target=contact_vessel,args=(leader_ip, path, payload))
+                t.daemon = True
+                t.start()
+                return True
+                
+            else:
+                print '[?] Middleware leader reached - You are a leader [?]'
+                return False
+                
+        except Exception as e:
+            print e
+    
     def add_new_element_to_store(entry_element, element, is_propagated_call=False):
         global board, node_id
         success = False
         try:
+            if middleware_leader('add', element):
+                return
             # add an element to the board of the vessel who call the function
             board[entry_element] = element
             if is_propagated_call:
@@ -127,6 +151,7 @@ try:
         try:
             new_entry = request.forms.get('entry')
             entry_id = len(board)+1
+            # FALSE TO DO NOT PROPAGATE EVERY INFO
             add_new_element_to_store(entry_id, new_entry, True)
             return True
 
@@ -141,11 +166,13 @@ try:
         if delete == "0":
             #do modify
             modified_element = request.forms.get('entry') 
-            modify_element_in_store(element_id, modified_element, True)
+            # FALSE TO DO NOT PROPAGATE EVERY INFO
+            modify_element_in_store(element_id, modified_element, False)
             
         if delete == "1":
             #do delete
-            delete_element_from_store(element_id, True)  
+            # FALSE TO DO NOT PROPAGATE EVERY INFO
+            delete_element_from_store(element_id, False)  
 
         pass
 
@@ -184,15 +211,17 @@ try:
             print e
     
     def mapping(body):
-        global rand, node_id, leader
+        global rand, node_id, leader, leader_ip
         print '[+] Start mapping'
 
         try:
             if node_id in body:
                 #print '[!] Circle finished'
                 leader = leader_selection(body)
+                leader_ip = '10.1.0.'+str(leader)
                 print '[!] the new leader is : ',
-                print(leader)
+                print(leader),
+                print ' { '+leader_ip+'}'
                 return
 
             #Append to the general list its ID and random number
@@ -228,10 +257,6 @@ try:
         except Exception as e:
             print e
 
-    # ------------------------------------------------------------------------------------------------------
-    # EXECUTION
-    # ------------------------------------------------------------------------------------------------------
-        
     # ------------------------------------------------------------------------------------------------------
     # EXECUTION
     # ------------------------------------------------------------------------------------------------------
